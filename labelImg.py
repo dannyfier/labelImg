@@ -6,6 +6,7 @@ import re
 import sys
 import subprocess
 
+
 from functools import partial
 from collections import defaultdict
 
@@ -77,6 +78,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # Main widgets and related state.
         self.labelDialog = LabelDialog(parent=self, listItem=self.labelHist)
         self.labelList = QListWidget()
+        ### define currentLabel
+        self.currentLabel = "default" if not self.labelHist else self.labelHist[0]
         self.itemsToShapes = {}
         self.shapesToItems = {}
 
@@ -96,7 +99,7 @@ class MainWindow(QMainWindow, WindowMixin):
         listLayout.addWidget(self.editButton)#, 0, Qt.AlignCenter)
         listLayout.addWidget(self.labelList)
 
-
+        self.labelTitle = QLabel
         self.dock = QDockWidget(u'Box Labels', self)
         self.dock.setObjectName(u'Labels')
         self.dock.setWidget(self.labelListContainer)
@@ -160,6 +163,9 @@ class MainWindow(QMainWindow, WindowMixin):
                 'Ctrl+L', 'color_line', u'Choose Box line color')
         color2 = action('Box &Fill Color', self.chooseColor2,
                 'Ctrl+Shift+L', 'color', u'Choose Box fill color')
+        ### added label action
+        nextLabel = action(u'&Next Label', self.nextLabelClass,
+                'Ctrl+Shift+C', 'expert', u'next label')
 
         createMode = action('Create\nRectBox', self.setCreateMode,
                 'Ctrl+N', 'new', u'Start drawing Boxs', enabled=False)
@@ -285,7 +291,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.tools = self.toolbar('Tools')
         self.actions.beginner = (
-            open, opendir, openNextImg, openPrevImg, save, None, create, copy, delete, None,
+        ### added nextLabel to menu
+            open, opendir, openNextImg, openPrevImg, save, None, nextLabel, create, copy, delete, None,
             zoomIn, zoom, zoomOut, fitWindow, fitWidth)
 
         self.actions.advanced = (
@@ -293,7 +300,8 @@ class MainWindow(QMainWindow, WindowMixin):
             createMode, editMode, None,
             hideAll, showAll)
 
-        self.statusBar().showMessage('%s started.' % __appname__)
+        ### changed start messege
+        self.statusBar().showMessage('Use ctrl+C to cycle through labels. The current label is %s.' % str(self.currentLabel))
         self.statusBar().show()
 
         # Application state.
@@ -355,6 +363,20 @@ class MainWindow(QMainWindow, WindowMixin):
         self.populateModeActions()
 
     ## Support Functions ##
+
+    ### cycle through labels
+    def nextLabelClass(self):
+        if len(self.labelHist) > 1:
+            currIndex = self.labelHist.index(self.currentLabel)
+            if currIndex + 1 < len(self.labelHist):
+                self.currentLabel = self.labelHist[currIndex+1]
+            else:
+                self.currentLabel = self.labelHist[0]
+            self.statusBar().showMessage('%s' % self.currentLabel)
+            # self.canvas.setEditing(True)
+            # self.populateModeActions()
+            # self.canvas.setEditing(False)
+            # self.labelList.customContextMenuRequested.connect(self.popLabelListMenu)
 
     def noShapes(self):
         return not self.itemsToShapes
@@ -604,11 +626,13 @@ class MainWindow(QMainWindow, WindowMixin):
         position MUST be in global coordinates.
         """
         if len(self.labelHist) > 0:
-            self.labelDialog = LabelDialog(parent=self, listItem=self.labelHist)
-
-        text = self.labelDialog.popUp()
-        if text is not None:
-            self.addLabel(self.canvas.setLastLabel(text))
+        ### auto label using currentLabel
+        #     self.labelDialog = LabelDialog(parent=self, listItem=self.labelHist)
+        #
+        # text = self.labelDialog.popUp()
+        # if text is not None:
+        #     self.addLabel(self.canvas.setLastLabel(text))
+            self.addLabel(self.canvas.setLastLabel(self.currentLabel))
             if self.beginner(): # Switch to edit mode.
                 self.canvas.setEditing(True)
                 self.actions.create.setEnabled(True)
@@ -709,7 +733,8 @@ class MainWindow(QMainWindow, WindowMixin):
                     basename = os.path.basename(os.path.splitext(self.filename)[0])
                     xmlPath = os.path.join(self.defaultSaveDir, basename + '.xml')
                     self.loadPascalXMLByFilename(xmlPath)
-
+            ### show defaul label at initialization
+                    self.statusBar().showMessage('%s' % filename)
             return True
         return False
 
